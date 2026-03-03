@@ -1,0 +1,11 @@
+Django>=4.2
+djangorestframework
+django-filter
+django-environ
+psycopg2-binary
+pillow
+openpyxl
+celery
+redis
+drf-spectacular
+requests
