@@ -118,6 +118,8 @@ REST_FRAMEWORK = {
 }
 
 
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -142,3 +144,11 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Настройка расписания Celery Beat
+CELERY_BEAT_SCHEDULE = {
+    'update-weather-every-hour': {
+        'task': 'events.tasks.update_all_locations_weather',
+        'schedule': 3600.0,
+    },
+}
