@@ -1,10 +1,18 @@
 from rest_framework import  serializers
-from .models import Event, Location, EventImage
+from .models import Event, Location, EventImage, WeatherData
 
 class LocationSerializer(serializers.ModelSerializer):
+    temperature = serializers.FloatField(source='weather.temperature', read_only=True)
+    humidity = serializers.IntegerField(source='weather.humidity', read_only=True)
+    pressure = serializers.FloatField(source='weather.pressure', read_only=True)
+    wind_direction = serializers.CharField(source='weather.wind_direction', read_only=True)
+    wind_speed = serializers.FloatField(source='weather.wind_speed', read_only=True)
+    updated_at = serializers.DateTimeField(source='weather.updated_at', read_only=True)
+
     class Meta:
         model = Location
-        fields = ['id', 'name', 'latitude', 'longitude']
+        fields = ['id', 'name', 'latitude', 'longitude', 'temperature',
+                  'humidity', 'pressure', 'wind_direction', 'wind_speed', 'updated_at']
 
 class EventImageSerializer(serializers.ModelSerializer):
     class Meta:
