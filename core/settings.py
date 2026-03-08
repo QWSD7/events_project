@@ -121,8 +121,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Проет мероприятий',
-    'DESCRIPTION': 'Документация для моего погодного сервиса и мероприятий',
+    'TITLE': 'Проект мероприятий',
+    'DESCRIPTION': 'Документация погодного сервиса и мероприятий',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
