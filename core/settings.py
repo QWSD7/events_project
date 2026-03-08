@@ -13,8 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import environ
 import os
-
-from django.conf.global_settings import MEDIA_URL
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -49,11 +48,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'events',
     'rest_framework',
-    'django_filters'
+    'django_filters',
+    'drf_spectacular',
+
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -114,7 +116,15 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
-    )
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Проет мероприятий',
+    'DESCRIPTION': 'Документация для моего погодного сервиса и мероприятий',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 
@@ -125,7 +135,8 @@ REST_FRAMEWORK = {
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'
+CELERY_TASK_TRACK_STARTED = True
 
 USE_I18N = True
 
@@ -135,7 +146,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -150,5 +166,31 @@ CELERY_BEAT_SCHEDULE = {
     'update-weather-every-hour': {
         'task': 'events.tasks.update_all_locations_weather',
         'schedule': 3600.0,
+    },
+    'publish-events-every-minute': {
+        'task': 'events.tasks.publish_and_notify_scheduled_events',
+        'schedule':  crontab(minute='*'),
+    }
+}
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_HOST = env('EMAIL_HOST')
+EMAIL_PORT = env('EMAIL_PORT')
+EMAIL_USE_TLS = env('EMAIL_USE_TLS')
+
+# Данные авторизации
+EMAIL_HOST_USER = env('EMAIL_HOST_USER') # Твой email (например, my-app@gmail.com)
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD') # Тот самый 16-значный КЛЮЧ ПРИЛОЖЕНИЯ
+
+# Почта, которая будет указана в поле "От кого" по умолчанию
+DEFAULT_FROM_EMAIL = f"My Project <{EMAIL_HOST_USER}>"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
