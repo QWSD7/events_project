@@ -118,7 +118,7 @@ class EmailSettings(models.Model):
     subject_template = models.CharField("Тема письма", max_length=255, default="Новое мероприятие")
     message_template = models.TextField(
         "Текст письма",
-        default="Здравствуйте!\n\nОпубликовано событие: {title}\nМесто: {location}\nДата начала: {start_date}\nПрогноз погоды: {weather}\n\nЖдем вас!"
+        default="Здравствуйте!\n\nОпубликовано событие: {title}\nМесто: {location}\nДата начала: {start_date}\n{weather}\n\nЖдем вас!"
     )
     recipients_text = models.TextField(
         "Список адресатов",

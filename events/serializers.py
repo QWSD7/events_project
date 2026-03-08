@@ -61,7 +61,7 @@ class EventSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'author', 'location', 'location_details', 'images', 'uploaded_images',
             'thumbnail', 'pub_date', 'start_date', 'end_date', 'rating', 'status'
         ]
-        read_only_fields = ['author', 'thumbnail', 'pub_date']
+        read_only_fields = ['author', 'thumbnail']
 
     def create(self, validated_data):
         uploaded_images = validated_data.pop('uploaded_images', [])

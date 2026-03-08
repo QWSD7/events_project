@@ -61,6 +61,8 @@ def publish_and_notify_scheduled_events():
 def send_publication_email_task(event_id):
     try:
         event = Event.objects.get(id=event_id)
+        update_single_location_weather(event.location.id)
+        event.refresh_from_db()
         mail_settings = EmailSettings.load()
         recipients = mail_settings.get_recipient_list()
 
