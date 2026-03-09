@@ -105,7 +105,7 @@ class EmailSettingsAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Шаблон письма", {
             'fields': ('subject_template', 'message_template'),
-            'description': "Доступные переменные: {title}, {location}"
+            'description': "Доступные переменные: {title}, {location}, {start_date}, {weather}"
         }),
         ("Получатели", {
             'fields': ('recipients_text',),
