@@ -83,8 +83,23 @@ docker-compose exec django python manage.py createsuperuser
 ---
 ## Тестирование 
 
-для запуска тестов используйте команду:
+Для запуска тестов и генерации отчета о покрытии выполните команды:
+
+Запуск тестов:
+
+```shell
+docker-compose exec django coverage run manage.py test events
 ```
-docker-compose exec django python manage.py test
+
+Просмотр отчета в консоли:
+```shell
+docker-compose exec django coverage report
 ```
+
+Генерация HTML-отчета (подробно):
+```shell
+docker-compose exec django coverage html
+```
+
+После выполнения отчет будет доступен в папке `htmlcov/index.html`.
 

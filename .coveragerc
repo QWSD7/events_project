@@ -1,0 +1,9 @@
+[run]
+source = .
+omit =
+    */migrations/*
+    */tests.py
+    manage.py
+    core/wsgi.py
+    core/asgi.py
+    core/celery.py

@@ -7,3 +7,5 @@ celerybeat-schedule
 /staticfiles/
 /media/
 /gunicorn.ctl
+/.coverage
+/htmlcov/
