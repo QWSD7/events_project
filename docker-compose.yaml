@@ -29,6 +29,7 @@ services:
              gunicorn core.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - .:/app
+      - /app/.venv
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
       - static_volume:/app/staticfiles
@@ -47,6 +48,7 @@ services:
     command: celery -A core worker -l info
     volumes:
       - .:/app
+      - /app/.venv
     env_file: .env
     depends_on:
       db:
@@ -59,6 +61,7 @@ services:
     command: celery -A core beat -l info
     volumes:
       - .:/app
+      - /app/.venv
     env_file: .env
     depends_on:
       db:
