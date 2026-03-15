@@ -1,7 +1,10 @@
-import openpyxl
 from io import BytesIO
+
+import openpyxl
+
 from django.db import transaction
 from django.utils import timezone
+
 from .models import Event, Location
 from .tasks import update_single_location_weather
 
@@ -12,28 +15,38 @@ def export_events_to_xlsx(queryset):
     sheet.title = "Events"
 
     columns = [
-        'Title', 'Description', 'Pub Date', 'Start Date',
-        'End Date', 'Location Name', 'Latitude', 'Longitude', 'Rating'
+        "Title",
+        "Description",
+        "Pub Date",
+        "Start Date",
+        "End Date",
+        "Location Name",
+        "Latitude",
+        "Longitude",
+        "Rating",
     ]
     sheet.append(columns)
 
-    for event in queryset.select_related('location'):
-        sheet.append([
-            event.title,
-            event.description,
-            event.pub_date.replace(tzinfo=None) if event.pub_date else '',
-            event.start_date.replace(tzinfo=None) if event.start_date else '',
-            event.end_date.replace(tzinfo=None) if event.end_date else '',
-            event.location.name,
-            event.location.latitude,
-            event.location.longitude,
-            event.rating
-        ])
+    for event in queryset.select_related("location"):
+        sheet.append(
+            [
+                event.title,
+                event.description,
+                event.pub_date.replace(tzinfo=None) if event.pub_date else "",
+                event.start_date.replace(tzinfo=None) if event.start_date else "",
+                event.end_date.replace(tzinfo=None) if event.end_date else "",
+                event.location.name,
+                event.location.latitude,
+                event.location.longitude,
+                event.rating,
+            ]
+        )
 
     output = BytesIO()
     workbook.save(output)
     output.seek(0)
     return output
+
 
 def import_events_from_xlsx(file_obj, user):
     workbook = openpyxl.load_workbook(file_obj)
@@ -45,8 +58,7 @@ def import_events_from_xlsx(file_obj, user):
             title, desc, pub_d, start_d, end_d, loc_name, lat, lon, rating = row
 
             location, _ = Location.objects.get_or_create(
-                name=loc_name,
-                defaults={'latitude': lat, 'longitude': lon}
+                name=loc_name, defaults={"latitude": lat, "longitude": lon}
             )
 
             Event.objects.create(
@@ -58,13 +70,12 @@ def import_events_from_xlsx(file_obj, user):
                 location=location,
                 author=user,
                 rating=rating or 0,
-                status='draft'
+                status="draft",
             )
             events_created += 1
 
-            location_id = location.id
             transaction.on_commit(
-                lambda: update_single_location_weather.delay(location_id)
+                lambda loc_id=location.id: update_single_location_weather.delay(loc_id)
             )
 
         return events_created

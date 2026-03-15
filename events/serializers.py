@@ -1,17 +1,23 @@
-from rest_framework import serializers
-from .models import Event, Location, EventImage, WeatherData
 from django.db import transaction
+from rest_framework import serializers
+
+from .models import Event, EventImage, Location, WeatherData
 
 
 class WeatherDataSerializer(serializers.ModelSerializer):
-    pressure_hpa = serializers.FloatField(source='pressure')
+    pressure_hpa = serializers.FloatField(source="pressure")
     pressure_mmhg = serializers.SerializerMethodField()
 
     class Meta:
         model = WeatherData
         fields = [
-            'temperature', 'humidity', 'pressure_hpa',
-            'pressure_mmhg', 'wind_direction', 'wind_speed', 'updated_at'
+            "temperature",
+            "humidity",
+            "pressure_hpa",
+            "pressure_mmhg",
+            "wind_direction",
+            "wind_speed",
+            "updated_at",
         ]
 
     def get_pressure_mmhg(self, obj):
@@ -25,7 +31,7 @@ class LocationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Location
-        fields = ['id', 'name', 'latitude', 'longitude', 'actual_weather']
+        fields = ["id", "name", "latitude", "longitude", "actual_weather"]
 
     def get_actual_weather(self, obj):
         weathers = obj.weather.all()
@@ -38,12 +44,12 @@ class LocationSerializer(serializers.ModelSerializer):
 class EventImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = EventImage
-        fields = ['id', 'image']
+        fields = ["id", "image"]
 
 
 class EventSerializer(serializers.ModelSerializer):
     # Вложенный сериализатор для места проведения (только чтение)
-    location_details = LocationSerializer(source='location', read_only=True)
+    location_details = LocationSerializer(source="location", read_only=True)
 
     # Список всех изображений мероприятия
     images = EventImageSerializer(many=True, read_only=True)
@@ -52,27 +58,37 @@ class EventSerializer(serializers.ModelSerializer):
     uploaded_images = serializers.ListField(
         child=serializers.ImageField(allow_empty_file=False, use_url=False),
         write_only=True,
-        required=False
+        required=False,
     )
 
     class Meta:
         model = Event
         fields = [
-            'id', 'title', 'description', 'author', 'location', 'location_details', 'images', 'uploaded_images',
-            'thumbnail', 'pub_date', 'start_date', 'end_date', 'rating', 'status'
+            "id",
+            "title",
+            "description",
+            "author",
+            "location",
+            "location_details",
+            "images",
+            "uploaded_images",
+            "thumbnail",
+            "pub_date",
+            "start_date",
+            "end_date",
+            "rating",
+            "status",
         ]
-        read_only_fields = ['author', 'thumbnail']
+        read_only_fields = ["author", "thumbnail"]
 
     def create(self, validated_data):
-        uploaded_images = validated_data.pop('uploaded_images', [])
+        uploaded_images = validated_data.pop("uploaded_images", [])
 
         with transaction.atomic():
             event = Event.objects.create(**validated_data)
 
             if uploaded_images:
-                image_objects = [
-                    EventImage(event=event, image=img) for img in uploaded_images
-                ]
+                image_objects = [EventImage(event=event, image=img) for img in uploaded_images]
                 for img_obj in image_objects:
                     img_obj.save()
 

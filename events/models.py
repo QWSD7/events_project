@@ -1,10 +1,13 @@
-from django.db import models, transaction
-from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator, MaxValueValidator
-from PIL import Image
 import os
 from io import BytesIO
+from textwrap import dedent
+
+from PIL import Image
+
+from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models, transaction
 
 
 class Location(models.Model):
@@ -17,7 +20,7 @@ class Location(models.Model):
 
 
 class WeatherData(models.Model):
-    location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name='weather')
+    location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="weather")
     temperature = models.FloatField("Температура (°C)", editable=False)
     humidity = models.PositiveIntegerField("Влажность (%)", editable=False)
     pressure = models.FloatField("Давление (мм рт. ст.)", editable=False)
@@ -27,12 +30,17 @@ class WeatherData(models.Model):
 
     class Meta:
         verbose_name = "Данные погоды"
+        verbose_name_plural = "Данные погоды"
+
+    def __str__(self):
+        # Возвращаем понятную строку
+        return f"Погода для {self.location.name} ({self.updated_at.strftime('%d.%m %H:%M')})"
 
 
 class Event(models.Model):
     STATUS_CHOSES = [
-        ('draft', 'Черновик'),
-        ('published', 'Опубликовано'),
+        ("draft", "Черновик"),
+        ("published", "Опубликовано"),
     ]
 
     title = models.CharField("Название", max_length=255)
@@ -41,49 +49,73 @@ class Event(models.Model):
     start_date = models.DateTimeField("Дата и время начала")
     end_date = models.DateTimeField("Дата и время завершения")
     author = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Автор")
-    location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name='events',
-                                 verbose_name="Место проведения")
-    rating = models.PositiveIntegerField("Рейтинг", validators=[MinValueValidator(0), MaxValueValidator(25)], default=0)
-    status = models.CharField("Статус", max_length=10, choices=STATUS_CHOSES, default='draft')
+    location = models.ForeignKey(
+        Location, on_delete=models.CASCADE, related_name="events", verbose_name="Место проведения"
+    )
+    rating = models.PositiveIntegerField(
+        "Рейтинг", validators=[MinValueValidator(0), MaxValueValidator(25)], default=0
+    )
+    status = models.CharField("Статус", max_length=10, choices=STATUS_CHOSES, default="draft")
 
     # Поле для превью, сжатые фото (заполняется автоматически)
-    thumbnail = models.ImageField("Превью", upload_to='thumbnails/', editable=False, null=True, blank=True)
+    thumbnail = models.ImageField(
+        "Превью", upload_to="thumbnails/", editable=False, null=True, blank=True
+    )
+
+    class Meta:
+        # сортировка по алфавиту
+        ordering = ["title"]
+        verbose_name = "Мероприятие"
+        verbose_name_plural = "Мероприятия"
+
+    def __str__(self):
+        return self.title
 
     def save(self, *args, **kwargs):
         # Проверяем, меняется ли статус на 'published'
         old_status = None
         if self.pk:
-            old_status = Event.objects.filter(pk=self.pk).values_list('status', flat=True).first()
+            old_status = Event.objects.filter(pk=self.pk).values_list("status", flat=True).first()
 
         super().save(*args, **kwargs)
 
         # Если статус стал published (и раньше был другим), ставим задачу в очередь
-        if self.status == 'published' and old_status != 'published':
+        if self.status == "published" and old_status != "published":
             # transaction.on_commit гарантирует, что задача уйдет в Celery
             # только после того, как данные РЕАЛЬНО запишутся в БД
             from .tasks import send_publication_email_task
+
             transaction.on_commit(lambda: send_publication_email_task.delay(self.id))
 
     def get_weather_report(self):
         """
         Выносим формирование отчета в модель
         """
-        weather = self.location.weather.order_by('-updated_at').first()
+        weather = self.location.weather.order_by("-updated_at").first()
         if not weather:
             return "Нет данных о погоде"
-        return f"\n\nПрогноз погоды:\nТемпература: {weather.temperature}°C\nВлажность: {weather.humidity}%\nДавление (мм. рт. ст.): {weather.pressure}\nНаправление ветра: {weather.wind_direction}\nСкорость ветра: {weather.wind_speed}"
-
-    class Meta:
-        # сортировка по алфавиту
-        ordering = ['title']
-
-    def __str__(self):
-        return self.title
+        report = f"""
+                Прогноз погоды:
+                Температура: {weather.temperature}°C
+                Влажность: {weather.humidity}%
+                Давление (мм. рт. ст.): {weather.pressure}
+                Направление ветра: {weather.wind_direction}
+                Скорость ветра: {weather.wind_speed}
+            """
+        return dedent(report).strip()
 
 
 class EventImage(models.Model):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='images')
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="images")
     image = models.ImageField("Изображение", upload_to="events/")
+
+    class Meta:
+        verbose_name = "Изображение мероприятия"
+        verbose_name_plural = "Изображения мероприятий"
+
+    def __str__(self):
+        # Возвращаем название мероприятия и имя файла
+        return f"Изображение для {self.event.title} ({self.image.name})"
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
@@ -114,27 +146,45 @@ class EventImage(models.Model):
         self.event.thumbnail.save(filename, ContentFile(thumb_io.getvalue()), save=True)
 
 
+def get_default_email_message():
+    return dedent("""
+        Здравствуйте!
+
+        Опубликовано событие: {title}
+        Место: {location}
+        Дата начала: {start_date}
+        {weather}
+
+        Ждем вас!
+    """).strip()
+
+
 class EmailSettings(models.Model):
     subject_template = models.CharField("Тема письма", max_length=255, default="Новое мероприятие")
     message_template = models.TextField(
         "Текст письма",
-        default="Здравствуйте!\n\nОпубликовано событие: {title}\nМесто: {location}\nДата начала: {start_date}\n{weather}\n\nЖдем вас!"
+        default=get_default_email_message,
     )
+
     recipients_text = models.TextField(
         "Список адресатов",
         help_text="Введите email-адреса через запятую или с новой строки",
-        default="admin@example.com"
+        default="admin@example.com",
     )
 
     class Meta:
         verbose_name = "Настройки уведомлений"
         verbose_name_plural = "Настройки уведомлений"
 
+    def __str__(self):
+        return "Настройки рассылки"
+
     def get_recipient_list(self):
         """Превращает текст из поля в чистый список [email, email]"""
         import re
+
         # Регулярка найдет все, что похоже на email, игнорируя пробелы и запятые
-        emails = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', self.recipients_text)
+        emails = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", self.recipients_text)
         return list(set(emails))
 
     @classmethod
@@ -142,6 +192,3 @@ class EmailSettings(models.Model):
         # Пытаемся взять первую запись, если нет — создаем дефолтную
         obj, _ = cls.objects.get_or_create(id=1)
         return obj
-
-    def __str__(self):
-        return "Настройки рассылки"

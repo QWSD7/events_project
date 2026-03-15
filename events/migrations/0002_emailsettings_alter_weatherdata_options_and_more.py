@@ -5,57 +5,83 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('events', '0001_initial'),
+        ("events", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EmailSettings',
+            name="EmailSettings",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('subject_template', models.CharField(default='Новое мероприятие', max_length=255, verbose_name='Тема письма')),
-                ('message_template', models.TextField(default='Здравствуйте!\n\nОпубликовано событие: {title}\nМесто: {location}\nДата начала: {start_date}\n{weather}\n\nЖдем вас!', verbose_name='Текст письма')),
-                ('recipients_text', models.TextField(default='admin@example.com', help_text='Введите email-адреса через запятую или с новой строки', verbose_name='Список адресатов')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "subject_template",
+                    models.CharField(
+                        default="Новое мероприятие", max_length=255, verbose_name="Тема письма"
+                    ),
+                ),
+                (
+                    "message_template",
+                    models.TextField(
+                        default="Здравствуйте!\n\nОпубликовано событие: {title}\nМесто: {location}\nДата начала: {start_date}\n{weather}\n\nЖдем вас!",
+                        verbose_name="Текст письма",
+                    ),
+                ),
+                (
+                    "recipients_text",
+                    models.TextField(
+                        default="admin@example.com",
+                        help_text="Введите email-адреса через запятую или с новой строки",
+                        verbose_name="Список адресатов",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Настройки уведомлений',
-                'verbose_name_plural': 'Настройки уведомлений',
+                "verbose_name": "Настройки уведомлений",
+                "verbose_name_plural": "Настройки уведомлений",
             },
         ),
         migrations.AlterModelOptions(
-            name='weatherdata',
-            options={'verbose_name': 'Данные погоды'},
+            name="weatherdata",
+            options={"verbose_name": "Данные погоды"},
         ),
         migrations.AlterField(
-            model_name='weatherdata',
-            name='humidity',
-            field=models.PositiveIntegerField(editable=False, verbose_name='Влажность (%)'),
+            model_name="weatherdata",
+            name="humidity",
+            field=models.PositiveIntegerField(editable=False, verbose_name="Влажность (%)"),
         ),
         migrations.AlterField(
-            model_name='weatherdata',
-            name='location',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='weather', to='events.location'),
+            model_name="weatherdata",
+            name="location",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="weather",
+                to="events.location",
+            ),
         ),
         migrations.AlterField(
-            model_name='weatherdata',
-            name='pressure',
-            field=models.FloatField(editable=False, verbose_name='Давление (мм рт. ст.)'),
+            model_name="weatherdata",
+            name="pressure",
+            field=models.FloatField(editable=False, verbose_name="Давление (мм рт. ст.)"),
         ),
         migrations.AlterField(
-            model_name='weatherdata',
-            name='temperature',
-            field=models.FloatField(editable=False, verbose_name='Температура (°C)'),
+            model_name="weatherdata",
+            name="temperature",
+            field=models.FloatField(editable=False, verbose_name="Температура (°C)"),
         ),
         migrations.AlterField(
-            model_name='weatherdata',
-            name='wind_direction',
-            field=models.CharField(editable=False, max_length=50, verbose_name='Направление ветра'),
+            model_name="weatherdata",
+            name="wind_direction",
+            field=models.CharField(editable=False, max_length=50, verbose_name="Направление ветра"),
         ),
         migrations.AlterField(
-            model_name='weatherdata',
-            name='wind_speed',
-            field=models.FloatField(editable=False, verbose_name='Скорость ветра (м/с)'),
+            model_name="weatherdata",
+            name="wind_speed",
+            field=models.FloatField(editable=False, verbose_name="Скорость ветра (м/с)"),
         ),
     ]
