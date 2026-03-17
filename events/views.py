@@ -1,8 +1,8 @@
+import logging
+
 from django_filters.rest_framework import DjangoFilterBackend
 
 from django.db.models import Prefetch
-from django.http import FileResponse
-from django.utils import timezone
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,9 +11,13 @@ from .filters import EventFilter
 from .models import Event, Location, WeatherData
 from .permissions import IsAdminOrReadOnly, IsSuperUser
 from .serializers import EventSerializer, LocationSerializer
-from .services import export_events_to_xlsx, import_events_from_xlsx
-from .tasks import update_single_location_weather
+from .tasks import (
+    export_events_to_xlsx_task,
+    import_events_from_xlsx_task,
+    update_single_location_weather,
+)
 
+logger = logging.getLogger(__name__)
 
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = Location.objects.all()
@@ -67,17 +71,24 @@ class EventViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[IsSuperUser])
     def export_xlsx(self, request):
-        queryset = self.get_queryset()
-        filtered_queryset = self.filter_queryset(queryset)
+        queryset = self.filter_queryset(self.get_queryset())
+        event_ids = list(queryset.values_list("id", flat=True))
 
-        file_handle = export_events_to_xlsx(filtered_queryset)
+        if not event_ids:
+            return Response({"error": "Нет данных для экспорта"}, status=400)
 
-        now = timezone.localtime(timezone.now())
+            # Запускаем фоновую задачу
+        export_events_to_xlsx_task.delay(event_ids, request.user.id)
 
-        time_str = now.strftime("%Y-%m-%d_%H-%M")
+        logging.info(f"Экспорт {len(event_ids)} записей запущен.")
 
-        filename = f"events_{time_str}.xlsx"
-        return FileResponse(file_handle, as_attachment=True, filename=filename)
+        return Response(
+            {
+                "message": f"Экспорт {len(event_ids)} записей запущен. "
+                f"Файл будет доступен в папке экспорта."
+            }
+        )
+
 
     @action(detail=False, methods=["post"], permission_classes=[IsSuperUser])
     def import_xlsx(self, request):
@@ -85,12 +96,15 @@ class EventViewSet(viewsets.ModelViewSet):
         if not file:
             return Response({"error": "Файл не предоставлен"}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            count = import_events_from_xlsx(file, request.user)
-            return Response(
-                {"message": f"Успешно импортировано: {count}"}, status=status.HTTP_201_CREATED
-            )
-        except Exception as e:
-            return Response(
-                {"error": f"Ошибка при импорте: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST
-            )
+        # Сохраняем файл временно, так как Celery не может получить доступ к файлу из памяти
+        from django.core.files.storage import default_storage
+
+        filename = default_storage.save(f"imports/{file.name}", file)
+        file_path = default_storage.path(filename)
+
+        # Запускаем задачу
+        import_events_from_xlsx_task.delay(file_path, request.user.id)
+
+        logging.info(f"Импорт запущен в фоновом режиме.")
+
+        return Response({"message": "Импорт запущен в фоновом режиме."})

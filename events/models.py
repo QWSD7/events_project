@@ -1,11 +1,8 @@
-import os
-from io import BytesIO
 from textwrap import dedent
 
-from PIL import Image
+from celery import chain
 
 from django.contrib.auth.models import User
-from django.core.files.base import ContentFile
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 
@@ -83,9 +80,16 @@ class Event(models.Model):
         if self.status == "published" and old_status != "published":
             # transaction.on_commit гарантирует, что задача уйдет в Celery
             # только после того, как данные РЕАЛЬНО запишутся в БД
-            from .tasks import send_publication_email_task
+            from .tasks import send_publication_email_task, update_single_location_weather
 
-            transaction.on_commit(lambda: send_publication_email_task.delay(self.id))
+            transaction.on_commit(
+                lambda: chain(
+                    # 1. Сначала обновляем погоду
+                    update_single_location_weather.s(self.location.id),
+                    # 2. Затем отправляем письмо (self.id — это id мероприятия)
+                    send_publication_email_task.s(self.id),
+                ).apply_async()
+            )
 
     def get_weather_report(self):
         """
@@ -122,28 +126,13 @@ class EventImage(models.Model):
         super().save(*args, **kwargs)
 
         if is_new and self.image and not self.event.thumbnail:
-            self.generate_event_thumbnail()
+            from .tasks import generate_event_thumbnail_task
 
-    def generate_event_thumbnail(self):
-        img = Image.open(self.image)
-        img_format = img.format
-
-        # Расчёт: уменьшаем фото до 200px по наименьшей стороне (согласно тех. заданию)
-        width, height = img.size
-        if width < height:
-            new_width = 200
-            new_height = int(height * (200 / width))
-        else:
-            new_height = 200
-            new_width = int(width * (200 / height))
-
-        img = img.resize((new_width, new_height), Image.LANCZOS)
-
-        thumb_io = BytesIO()
-        img.save(thumb_io, format=img_format, quality=85)
-
-        filename = os.path.basename(self.image.name)
-        self.event.thumbnail.save(filename, ContentFile(thumb_io.getvalue()), save=True)
+            # Используем on_commit, чтобы задача ушла в Celery
+            # только после того, как запись EventImage реально сохранится в БД
+            transaction.on_commit(
+                lambda: generate_event_thumbnail_task.delay(self.event.id, self.id)
+            )
 
 
 def get_default_email_message():

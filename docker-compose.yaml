@@ -33,7 +33,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
       - static_volume:/app/staticfiles
-      - media_volume:/app/media
+      - ./media:/app/media
     ports:
       - "8000:8000"
     env_file: .env
@@ -49,6 +49,7 @@ services:
     volumes:
       - .:/app
       - /app/.venv
+      - ./media:/app/media
     env_file: .env
     depends_on:
       db:
