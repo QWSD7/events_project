@@ -1,3 +1,5 @@
+import tempfile
+
 from datetime import datetime
 from io import BytesIO
 
@@ -5,7 +7,7 @@ from PIL import Image
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITestCase
@@ -14,13 +16,14 @@ from .models import Event, EventImage, Location, WeatherData
 from .serializers import WeatherDataSerializer
 
 
-class EventLogicTest(TestCase):
+class EventLogicTest(TransactionTestCase):
     def setUp(self):
         self.user = User.objects.create_superuser(username="admin", password="password")
         self.location = Location.objects.create(
             name="Красноярск", latitude=56.010543, longitude=92.852581
         )
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True, MEDIA_ROOT=tempfile.gettempdir())
     def test_image_thumbnail_resize(self):
         """
         Проверка автоматического ресайза превью до 200 пикселей
